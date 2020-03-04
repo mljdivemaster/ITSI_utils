@@ -57,3 +57,31 @@ export = none
 owner = admin
 version = 7.2.4
 modtime = 1583327165.371551000
+
+[savedsearches/Create%20baseline%20for%20ITSI%20KPI%27s%202%20week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583329395.714137000
+
+[savedsearches/Create%20baseline%20for%20ITSI%20KPI%27s%204%20week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583329395.714137000
+
+[savedsearches/Create%20baseline%20for%20ITSI%20KPI%27s%206%20week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583329395.714137000
+
+[savedsearches/Create%20baseline%20for%20ITSI%20KPI%27s%208%20week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583329395.714137000
