@@ -1,3 +1,59 @@
 [app/install/install_source_checksum]
 version = 7.2.4
 modtime = 1576751656.415231000
+
+[lookups/baseline_itsi_kpi_2week.csv]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583319012.217769000
+
+[transforms/baseline_itsi_kpi_2week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583327165.371551000
+
+[lookups/baseline_itsi_kpi_4week.csv]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583319012.217769000
+
+[transforms/baseline_itsi_kpi_4week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583327165.371551000
+
+[lookups/baseline_itsi_kpi_6week.csv]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583319012.217769000
+
+[transforms/baseline_itsi_kpi_6week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583327165.371551000
+
+[lookups/baseline_itsi_kpi_8week.csv]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583319012.217769000
+
+[transforms/baseline_itsi_kpi_8week]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583327165.371551000
