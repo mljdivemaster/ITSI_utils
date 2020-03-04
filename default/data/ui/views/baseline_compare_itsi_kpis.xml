@@ -1,0 +1,357 @@
+<form>
+  <label>Baseline compare ITSI KPI's</label>
+  <search id="internal_data">
+    <query>index=itsi_summary  $kpi$
+| bucket _time span=1h
+| stats dedup_splitvals=t $statsmode$(alert_value) AS value by _time, kpiid
+| fields  value, _time, kpiid
+| where isnotnull(value)
+| eval date_wday=lower(strftime('_time', "%A")), local_time=strftime('_time', "%H%M")
+| eval date_wday=if(isnull(date_wday), lower(strftime('_time', "%A")), date_wday) 
+| eval local_time=if(isnull(local_time), strftime('_time', "%H%M"), local_time)
+</query>
+    <earliest>$timerange.earliest$</earliest>
+    <latest>$timerange.latest$</latest>
+  </search>
+  <fieldset autoRun="false" submitButton="true">
+    <input type="time" token="timerange" searchWhenChanged="true">
+      <label>Time Range:</label>
+      <default>
+        <earliest>-7d@d</earliest>
+        <latest>@d</latest>
+      </default>
+    </input>
+    <input type="dropdown" token="title" searchWhenChanged="true">
+      <label>Service</label>
+      <fieldForLabel>title</fieldForLabel>
+      <fieldForValue>title</fieldForValue>
+      <search>
+        <query>| inputlookup service_kpi_lookup
+|  dedup title
+|  sort title
+|  table title</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+      <prefix>service_name="</prefix>
+      <suffix>"</suffix>
+    </input>
+    <input type="dropdown" token="kpi" searchWhenChanged="true">
+      <label>KPI</label>
+      <fieldForLabel>kpi_name</fieldForLabel>
+      <fieldForValue>kpiid</fieldForValue>
+      <search>
+        <query>| inputlookup service_kpi_lookup where object_type="service" 
+| rename _key as serviceid, title as service_name 
+| eval kpi_info=mvzip('kpis._key','kpis.title',"==@@==") 
+| fields + kpi_info, service_name, serviceid 
+| mvexpand kpi_info 
+| rex field=kpi_info "(?&lt;kpiid&gt;.+)==@@==(?&lt;kpi_name&gt;.+)"
+|  search $title$</query>
+      </search>
+      <prefix>kpiid="</prefix>
+      <suffix>"</suffix>
+    </input>
+  </fieldset>
+  <row>
+    <panel id="settings">
+      <title>Settings</title>
+      <input type="dropdown" token="baseline" searchWhenChanged="true">
+        <label>Select Baseline</label>
+        <choice value="baseline_itsi_kpi_2week">Last 2 week</choice>
+        <choice value="baseline_itsi_kpi_2mon">Last 2 months</choice>
+        <choice value="baseline_itsi_kpi_4mon">Last 4 months</choice>
+        <choice value="baseline_itsi_kpi_6mon">Last 6 months</choice>
+        <choice value="baseline_itsi_kpi_12mon">Last 12 months</choice>
+        <default>baseline_itsi_kpi_2week</default>
+        <initialValue>baseline_itsi_kpi_2week</initialValue>
+      </input>
+      <input type="dropdown" token="lower_baseline" searchWhenChanged="true">
+        <label>Type of lower Baseline:</label>
+        <default>-1stdev</default>
+        <choice value="lower_min">Min</choice>
+        <choice value="lower_perc10">Percentile 10</choice>
+        <choice value="lower_perc25">Percentile 25</choice>
+        <choice value="-1stdev">-1 Standard deviation</choice>
+        <choice value="-2stdev">-2 Standard deviation</choice>
+        <choice value="-1range">-1 Range</choice>
+        <choice value="0range">0 Range (min)</choice>
+        <initialValue>-1stdev</initialValue>
+      </input>
+      <input type="dropdown" token="upper_baseline" searchWhenChanged="true">
+        <label>Type of upper Baseline:</label>
+        <default>+1stdev</default>
+        <choice value="upper_perc75">Percentile 75</choice>
+        <choice value="upper_perc90">Percentile 90</choice>
+        <choice value="+1stdev">+1 Standard deviation</choice>
+        <choice value="+2stdev">+2 Standard deviation</choice>
+        <choice value="0range">0 Range</choice>
+        <choice value="+1range">+1 Range (max)</choice>
+        <choice value="+2range">+2 Range</choice>
+        <choice value="upper_max">Max</choice>
+        <initialValue>+1stdev</initialValue>
+      </input>
+      <input type="dropdown" token="statsmode" searchWhenChanged="true">
+        <label>Stats mode:</label>
+        <default>avg</default>
+        <choice value="max">Max</choice>
+        <choice value="avg">Avg</choice>
+        <choice value="min">Min</choice>
+      </input>
+      <input type="dropdown" token="chart" searchWhenChanged="true">
+        <label>Type of chart:</label>
+        <default>line</default>
+        <choice value="area">Area</choice>
+        <choice value="line">Line</choice>
+        <choice value="column">Column</choice>
+        <choice value="bar">Bar</choice>
+      </input>
+      <input type="dropdown" token="charting.chart.nullValueMode" searchWhenChanged="true">
+        <label>Missing Data:</label>
+        <default>connect</default>
+        <choice value="gaps">Gaps</choice>
+        <choice value="connect">Connect</choice>
+        <choice value="zero">Zero</choice>
+      </input>
+      <input type="dropdown" token="charting.legend.placement" searchWhenChanged="true">
+        <label>Legend placement:</label>
+        <default>bottom</default>
+        <choice value="bottom">Bottom</choice>
+        <choice value="top">Top</choice>
+        <choice value="left">left</choice>
+        <choice value="right">right</choice>
+        <choice value="center">center</choice>
+        <choice value="none">none</choice>
+      </input>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>$title$ $kpi$ $baseline$</title>
+      <chart>
+        <search base="internal_data">
+          <query>
+            lookup $baseline$ date_wday,local_time,kpiid
+            | timechart span=1h $statsmode$(value) AS current,avg($lower_baseline$_baseline_value) AS lower,  avg($upper_baseline$_baseline_value) AS upper 
+            | eval _lower = "lower"
+            | eval _upper = "upper"
+            |  table _time, current, lower, upper
+          </query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.text">virtual CPUs</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">$chart$</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">$charting.chart.nullValueMode$</option>
+        <option name="charting.chart.overlayFields">predicted, lower, upper</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"predicted": 0xF69D1F,"current": 0x259FF8,"upper": 0x00e600,"lower":0xE60000}</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.placement">$charting.legend.placement$</option>
+        <option name="height">450</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <viz type="Splunk_ML_Toolkit.OutliersViz">
+        <search base="internal_data">
+          <query>
+            lookup $baseline$ date_wday,local_time,kpiid
+            | timechart span=1h $statsmode$(value) AS current,avg($lower_baseline$_baseline_value) AS lower,  avg($upper_baseline$_baseline_value) AS upper 
+            | eval _lower = "lower" 
+            | eval _upper = "upper"
+            |  table _time, current, lower, upper</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </viz>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Outliners</title>
+      <table>
+        <search base="internal_data">
+          <query>
+            lookup $baseline$ date_wday,local_time,kpiid
+            | timechart span=1h $statsmode$(value) AS current,avg($lower_baseline$_baseline_value) AS lower,  avg($upper_baseline$_baseline_value) AS upper
+            | eval _lower = "lower" 
+            | eval _upper = "upper"
+            |  eval low_outline=if(current &lt; lower,1, 0)
+            |  eval high_outline=if(current &gt; upper,1, 0)
+            | stats sum(low_outline) as low_outline, sum(high_outline) as high_outline</query>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+    <panel>
+      <title>Top days with outliners</title>
+      <chart>
+        <search base="internal_data">
+          <query>
+             lookup $baseline$ date_wday,local_time,kpiid
+ | timechart span=1h $statsmode$(value) AS current,avg($lower_baseline$_value) AS lower, avg(baseline_mean_value) AS predicted, avg($upper_baseline$_baseline_value) AS upper, values(date_wday) as date_wday
+| eval _lower = "lower" 
+| eval _predicted = "predicted" 
+| eval _upper = "upper"
+|  eval low_outline=if(current &lt; lower,1, 0)
+|  eval high_outline=if(current &gt; upper,1, 0)
+|  search low_outline!=0 OR high_outline!=0
+|  top date_wday</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Top hour segment with outliners</title>
+      <chart>
+        <search base="internal_data">
+          <query>
+            lookup $baseline$ date_wday,local_time,kpiid
+ | timechart span=1h $statsmode$(value) AS current,avg($lower_baseline$_value) AS lower, avg(baseline_mean_value) AS predicted, avg($upper_baseline$_baseline_value) AS upper, values(date_wday) as date_wday, values(local_time) as local_time
+| eval _lower = "lower" 
+| eval _predicted = "predicted" 
+| eval _upper = "upper"
+|  eval low_outline=if(current &lt; lower,1, 0)
+|  eval high_outline=if(current &gt; upper,1, 0)
+|  search low_outline!=0 OR high_outline!=0
+|  top local_time</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Top weekly timeslots with outliners</title>
+      <chart>
+        <search base="internal_data">
+          <query>
+            eval date_wday_local_time=date_wday+" "+local_time
+            | lookup $baseline$ date_wday,local_time,kpiid
+ | timechart span=1h $statsmode$(value) AS current,avg($lower_baseline$_value) AS lower, avg(baseline_mean_value) AS predicted, avg($upper_baseline$_baseline_value) AS upper, values(date_wday) as date_wday, values(local_time) as local_time, values(date_wday_local_time) as date_wday_local_time
+| eval _lower = "lower" 
+| eval _predicted = "predicted" 
+| eval _upper = "upper"
+|  eval low_outline=if(current &lt; lower,1, 0)
+|  eval high_outline=if(current &gt; upper,1, 0)
+|  search low_outline!=0 OR high_outline!=0
+|  top date_wday_local_time</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">bar</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">minmax</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+  </row>
+</form>
