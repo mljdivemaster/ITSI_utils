@@ -1,0 +1,72 @@
+<form>
+  <label>Back filled KPI's status</label>
+  <search id="base">
+    <query>| tstats min(_time) as firstTime ,max(_time) as lastTime  where index=itsi_summary by  indexed_itsi_kpi_id
+| lookup service_kpi_lookup.csv kpiid as indexed_itsi_kpi_id OUTPUT service_name, kpi_name
+| search kpi_name=*
+| eval days_with_kpi_data =  lastTime - firstTime
+| eval days_with_kpi_data = round(days_with_kpi_data/60/60/24,0)
+| eval minimum_weeks=round(days_with_kpi_data/7,0)
+| eval days_since_last_seen=now()-lastTime
+| eval days_since_last_seen = round(days_since_last_seen/60/60/24,0)
+| eval "First Event"=strftime(firstTime,"%Y-%m-%d %H:%M:%S"), "Last Event"=strftime(lastTime,"%Y-%m-%d %H:%M:%S"), "Generated"=strftime(now(),"%Y-%m-%d %H:%M:%S")
+</query>
+  </search>
+  <fieldset submitButton="false" autoRun="false">
+    <input type="dropdown" token="service" searchWhenChanged="true">
+      <label>Service</label>
+      <choice value="*">All</choice>
+      <fieldForLabel>service_name</fieldForLabel>
+      <fieldForValue>service_name</fieldForValue>
+      <search>
+        <query>|  inputlookup service_kpi_lookup.csv
+| search $kpi$
+|  dedup service_name
+|  sort service_name
+|  table service_name</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+      <prefix>service_name="</prefix>
+      <suffix>"</suffix>
+      <default>*</default>
+      <initialValue>*</initialValue>
+    </input>
+    <input type="dropdown" token="kpi" searchWhenChanged="true">
+      <label>KPI</label>
+      <choice value="*">All</choice>
+      <fieldForLabel>kpi_name</fieldForLabel>
+      <fieldForValue>kpi_name</fieldForValue>
+      <search>
+        <query>|  inputlookup service_kpi_lookup.csv
+|  search $service$
+|  dedup kpi_name
+|  sort kpi_name
+|  table kpi_name</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+      <suffix>"</suffix>
+      <default>*</default>
+      <prefix>kpi_name="</prefix>
+      <initialValue>*</initialValue>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Overview</title>
+      <table>
+        <search base="base">
+          <query>search $service$ AND $kpi$
+        |  rename service_name as "Service name" kpi_name as "KPI name" days_with_kpi_data as "Days with KPI data" minimum_weeks as "Minimum weeks" days_since_last_seen as "Days since last seen"
+        | table "Service name" "KPI name" "First Event" "Last Event" "Days with KPI data" "Minimum weeks" "Days since last seen" "Generated" 
+        | sort "Service name" "KPI name"</query>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+
+</form>
