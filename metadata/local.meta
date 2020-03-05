@@ -99,3 +99,18 @@ export = none
 owner = admin
 version = 7.2.4
 modtime = 1583329395.714137000
+
+[savedsearches/Changes%20in%20ITSI%20amongs%20services%20and%20kpi%27s]
+access = read : [ * ], write : [ admin, power ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583334924.585404000
+
+[savedsearches/Copy%20service_kpi_lookup%20multivalue%20lookup%20to%20service_kpi_lookup.csv%20single%20value]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583335097.169251000
+
