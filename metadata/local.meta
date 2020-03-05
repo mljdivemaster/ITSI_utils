@@ -58,6 +58,20 @@ owner = admin
 version = 7.2.4
 modtime = 1583327165.371551000
 
+[lookups/itsi_utils_service_kpi_lookup.csv]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583319012.217769000
+
+[transforms/itsi_utils_service_kpi_lookup]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.4
+modtime = 1583327165.371551000
+
 [savedsearches/Create%20baseline%20for%20ITSI%20KPI%27s%202%20week]
 access = read : [ * ], write : [ admin ]
 export = none
